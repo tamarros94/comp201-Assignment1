@@ -6,16 +6,19 @@
 
 (* general list-processing procedures *)
 
+(* applies boolean function to every element in list and return true if at least one element is true*)
 let rec ormap f s =
   match s with
   | [] -> false
   | car :: cdr -> (f car) || (ormap f cdr);;
 
+(* applies boolean function to every element in list and return false if at least one element is false*)
 let rec andmap f s =
   match s with
   | [] -> true
-  | car :: cdr -> (f car) && (andmap f cdr);;	  
+  | car :: cdr -> (f car) && (andmap f cdr);;	 
 
+(* turn uppercase char to lowercase *)
 let lowercase_ascii  =
   let delta = int_of_char 'A' - int_of_char 'a' in
   fun ch ->
@@ -23,6 +26,7 @@ let lowercase_ascii  =
   then char_of_int ((int_of_char ch) - delta)
   else ch;;
 
+(* turns string to list of chars*)
 let string_to_list str =
   let rec loop i limit =
     if i = limit then []
@@ -30,6 +34,7 @@ let string_to_list str =
   in
   loop 0 (String.length str);;
 
+(* turns list to string*)
 let list_to_string s =
   String.concat "" (List.map (fun ch -> String.make 1 ch) s);;
 
@@ -41,6 +46,7 @@ exception X_not_yet_implemented;;
 
 exception X_no_match;;
 
+(* takes pred (bool func) and applies it to list -> returns first char of list (if pred returns true on it) and rest of list *)
 let const pred =
   function 
   | [] -> raise X_no_match
