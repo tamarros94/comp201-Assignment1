@@ -54,17 +54,24 @@ let const pred =
      if (pred e) then (e, s)
      else raise X_no_match;;
 
+(* applying 2 const parsers (non-terminals) one after another *)
 let caten nt1 nt2 s =
   let (e1, s) = (nt1 s) in
   let (e2, s) = (nt2 s) in
   ((e1, e2), s);;
 
+(* same as const parser, but also applies func 'f' on first element *)
 let pack nt f s =
   let (e, s) = (nt s) in
   ((f e), s);;
 
+(* end of parse *)
 let nt_epsilon s = ([], s);;
 
+(* given a list of non-terminals:
+    returns function that receives list s and:
+      for each pair of non terminals in list s: performs caten and concatenates result list until nt_epsilon
+     *)
 let caten_list nts =
   List.fold_right
     (fun nt1 nt2 ->
@@ -73,32 +80,44 @@ let caten_list nts =
     nts
     nt_epsilon;;
 
+(* returns a function that receives a list and tries to apply nt1 to it, and if not successful -> applies nt2 *)
 let disj nt1 nt2 =
   fun s ->
   try (nt1 s)
   with X_no_match -> (nt2 s);;
 
 let nt_none _ = raise X_no_match;;
-  
+
+(* given a list of non-terminals:
+    returns function that receives list s and:
+      for each pair of non terminals in list: performs disj on s until nt_none
+     *)
 let disj_list nts = List.fold_right disj nts nt_none;;
 
 let delayed thunk s =
   thunk() s;;
 
+
 let nt_end_of_input = function
   | []  -> ([], [])
   | _ -> raise X_no_match;;
 
+(* given a non-terminal and a list -> returns all production rules possibilities contcatinated*)
 let rec star nt s =
   try let (e, s) = (nt s) in
       let (es, s) = (star nt s) in
       (e :: es, s)
   with X_no_match -> ([], s);;
 
+(* given a non-terminal -> 
+    returns a function that receives a list:
+      (at least one)production result concatenated to all production rules possibilities contcatinated*)
 let plus nt =
   pack (caten nt (star nt))
        (fun (e, es) -> (e :: es));;
 
+(* given a non-terminal, a bool func(pred) and a list -> 
+    applies non-terminal to list, and appliespred to result, if true -> returns result*)
 let guard nt pred s =
   let ((e, _) as result) = (nt s) in
   if (pred e) then result
