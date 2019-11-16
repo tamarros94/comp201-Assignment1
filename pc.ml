@@ -94,6 +94,7 @@ let nt_none _ = raise X_no_match;;
      *)
 let disj_list nts = List.fold_right disj nts nt_none;;
 
+(* kind of like lazy-eval: supposed to handle recursive CFG like A->A|B*)
 let delayed thunk s =
   thunk() s;;
 
@@ -117,12 +118,15 @@ let plus nt =
        (fun (e, es) -> (e :: es));;
 
 (* given a non-terminal, a bool func(pred) and a list -> 
-    applies non-terminal to list, and appliespred to result, if true -> returns result*)
+    applies non-terminal to list, and applies pred to first char of result, if true -> returns result*)
 let guard nt pred s =
   let ((e, _) as result) = (nt s) in
   if (pred e) then result
   else raise X_no_match;;
   
+  (* applies nt1 on s and then nt2 on the same s. 
+  returns a parser that accepts the language of nt1 WITHOUT the language of nt2
+  e.g: I want nt_no_digits then I can run diff nt_all nt_digits*)
 let diff nt1 nt2 s =
   match (let result = nt1 s in
 	 try let _ = nt2 s in
@@ -131,6 +135,8 @@ let diff nt1 nt2 s =
   | None -> raise X_no_match
   | Some(result) -> result;;
 
+(* applies nt1 on s and then applies nt2 on s' leftover of nt1. 
+  e.g: *)
 let not_followed_by nt1 nt2 s =
   match (let ((_, s) as result) = (nt1 s) in
 	 try let _ = (nt2 s) in

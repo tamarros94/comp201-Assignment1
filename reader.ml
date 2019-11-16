@@ -1,5 +1,5 @@
-
 #use "pc.ml";;
+#use "parsers.ml";;
 
 exception X_not_yet_implemented;;
 exception X_this_should_not_happen;;
@@ -33,10 +33,11 @@ let rec sexpr_eq s1 s2 =
   | TagRef(name1), TagRef(name2) -> name1 = name2
   | _ -> false;;
   
-module Reader: sig
+module Reader
+(* : sig
   val read_sexpr : string -> sexpr
   val read_sexprs : string -> sexpr list
-end
+end *)
 = struct
 let normalize_scheme_symbol str =
   let s = string_to_list str in
@@ -44,11 +45,23 @@ let normalize_scheme_symbol str =
 	(fun ch -> (ch = (lowercase_ascii ch)))
 	s) then str
   else Printf.sprintf "|%s|" str;;
-
-let read_sexpr string = raise X_not_yet_implemented ;;
-
-let read_sexprs string = raise X_not_yet_implemented;;
   
-end;; (* struct Reader *)
 
-Printf "bla bla";;
+
+
+(* let parse_sexpr string_list =
+(*1. apply disj_list on list of nts (according to CFG) and string_list *)
+  OP.disj_list (nt1, nt2, nt3...) string_list *)
+
+let read_sexpr string =
+  let (sexpr, s) = (parse_sexpr (string_to_list string)) in
+  if (s = [])
+  then sexpr
+  else raise X_no_match;;
+
+
+let read_sexprs string =
+    let (sexpr_list, s) = ((PC.star parse_sexpr) (string_to_list string)) in
+    sexpr_list;;
+
+end;; (* struct Reader *)
