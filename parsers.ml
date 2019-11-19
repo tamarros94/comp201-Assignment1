@@ -1,12 +1,6 @@
 #use "pc.ml";;
 open PC;;
 
-type expr =
-  | Number of int
-  | Plus of expr * expr
-  | Mult of expr * expr
-  | Power of expr * expr;;
-
 type number =
   | Int of int
   | Float of float;;
@@ -21,6 +15,12 @@ type sexpr =
   | Pair of sexpr * sexpr
   | TaggedSexpr of string * sexpr
   | TagRef of string;;
+
+(* type expr =
+  | Number of int
+  | Plus of expr * expr
+  | Mult of expr * expr
+  | Power of expr * expr;; *)
 
 let rec sexpr_eq s1 s2 =
   match s1, s2 with
@@ -44,13 +44,39 @@ exception X_not_yet_implemented;;
 
 exception X_no_match;;
 
-(* 3.2.1 parser for identifying whitespaces *)
+(*abstract parsers*)
+let nt_all_but c = star (const (fun ch -> ch != c))
+
+
+(* 3.2.1 Whitespaces *)
 let nt_whitespace = const (fun ch -> ch <= ' ');;
-(* 3.2.1 parser for identifying line comments *)
-let nt_semicolon = const (fun ch -> ch = ';');;
-let nt_eol = const (fun ch -> ch = '\n');;
-let nt_eol_eoi = disj nt_semicolon nt_end_of_input
-let make_line_comment nt = make_paired nt_semicolon (star nt_whitespace) nt;;
+
+(* 3.2.2 Line comments *)
+let nt_comment_line = 
+    let nt_semicolon = const (fun ch -> ch ==';') in
+    let nt_eol = const (fun ch -> ch == '\n') in
+    let nt_all_but_eol = nt_all_but '\n' in
+    let nt_end_of_comment = disj nt_eol (pack nt_end_of_input (fun (dummy) -> 'a')) in
+    let nt = caten nt_semicolon nt_all_but_eol in
+    let nt = caten nt nt_end_of_comment in
+    (pack nt (fun (dummy) -> Nil));;
+
+
+    
+
+(* 3.2.3 Sexpr comments *)
+(* let nt_comment_sexpr = 
+    let start_comment = word_ci "#;" in
+    let packed_parse_sexpr = pack nt_sexpr (fun e -> Nil);; *)
+
+(*3.3.1 Boolean*)
+let nt_boolean =
+    let nt_false = word_ci "#f" in
+    let nt_true = word_ci "#t" in
+    let nt = disj nt_false nt_true in
+    let nt = make_spaced nt in
+    let nt = pack nt (fun (_e) -> (Bool e)) in
+nt;;
 (* abstract parser that skips nt_right and nt_left results from left and right of nt *)
 let make_paired nt_left nt_right nt =
   let nt = caten nt_left nt in
@@ -102,59 +128,6 @@ let make_nt_parenthesized_expr nt =
 	   <L3> ::= <Number> | <Parenthesized>
 <Parenthesized> ::= `(' <L0> `)' | `[' <L0> `]' | `{' <L0> `}' *)
 
-  let nt_expr = 
-    let rec nt_parenthesized_expr s =
-    (*<Parenthesized> ::= `(' <L0> `)' | `[' <L0> `]' | `{' <L0> `}' *)
-        make_nt_parenthesized_expr nt_L0 s
-    and nt_L3 s =
-        (*<L3> ::= <Number> | <Parenthesized>*)
-        disj nt_parenthesized_expr
-        (pack nt_hex (fun e -> Number e))
-        s 
-    and nt_L2 s =
-        (*<L2> ::= <L3> {`^' <L3> }* *)
-        let nt = caten (make_spaced (char '^'))
-            nt_L3 in
-        let nt = pack nt (function (_, e) -> e) in
-        let nt = star nt in
-        let nt = caten nt_L3 nt in
-        let nt = pack nt (fun (e1, es) ->
-                List.fold_left (fun a b -> Power(a, b))
-                        e1
-                        es) in
-        nt s
-    and nt_L1 s =
-            (*<L1> ::= <L2> {`*' <L2> }* *)
-        let nt = caten (make_spaced (char '*'))
-            nt_L2 in
-        let nt = pack nt (function (_, e) -> e) in
-        let nt = star nt in
-        let nt = caten nt_L2 nt in
-        let nt = pack nt (function (e1, es) ->
-                    List.fold_left (fun a b -> Mult(a, b))
-                            e1
-                            es) in
-        nt s
-    and nt_L0 s =
-        let nt = caten (make_spaced (char '+'))
-            nt_L1 in
-        let nt = pack nt (function (_, e) -> e) in
-        let nt = star nt in
-        let nt = caten nt_L1 nt in
-        let nt = pack nt (function (e1, es) ->
-                    List.fold_left (fun a b -> Plus(a, b))
-                            e1
-                            es) in
-        nt s in
-    nt_L0;;
+
 
 end;; (* end of struct PC *)
-
-
-(* testing *)
-open NT;;
-
-test_string (make_spaced (word("moshe"))) "   moshe   ";;
-test_string nt_hex "    0x35";;
-test_string nt_expr "0x234";;
-test_string nt_expr "0x2 * 0x3 + 0x4 * 0x5";;

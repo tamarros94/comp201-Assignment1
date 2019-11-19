@@ -55,18 +55,25 @@ let const pred =
      if (pred e) then (e, s)
      else raise X_no_match;;
 
-(* applying 2 const parsers (non-terminals) one after another *)
+(* We try to parse the head of s using nt1
+▶ If we succeed, we get e1 and the remaining chars s
+▶ We try to parse the head of s (what remained after nt1) using nt2
+▶ If we succeed, we get e2 and the remaining chars s
+▶ We return the pair of e1 & e2, as well as the remaining chars *)
 let caten nt1 nt2 s =
   let (e1, s) = (nt1 s) in
   let (e2, s) = (nt2 s) in
   ((e1, e2), s);;
 
-(* same as const parser, but also applies func 'f' on first element *)
+(* pack takes a non-terminal nt and a function f
+▶ returns a parser that recognizes the same language as nt
+▶ …but which applies f to whatever was matched *)
 let pack nt f s =
   let (e, s) = (nt s) in
   ((f e), s);;
 
-(* end of parse *)
+(* parser that recognizes ε-productions
+This is like I (evar hayehida) -> caten nt nt_epsilon = caten nt_epsilon nt = nt *)
 let nt_epsilon s = ([], s);;
 
 (* given a list of non-terminals:
@@ -81,12 +88,16 @@ let caten_list nts =
     nts
     nt_epsilon;;
 
-(* returns a function that receives a list and tries to apply nt1 to it, and if not successful -> applies nt2 *)
+(* We try to parse the head of s using nt1
+▶ If we succeed, then the call to nt1 returns normally
+▶ If we fail we try to parse the head of s using nt2 *)
 let disj nt1 nt2 =
   fun s ->
   try (nt1 s)
   with X_no_match -> (nt2 s);;
 
+(*parser that always fails
+disj nt nt_none ≡ disj nt_none nt ≡ nt*)
 let nt_none _ = raise X_no_match;;
 
 (* given a list of non-terminals:
@@ -95,11 +106,15 @@ let nt_none _ = raise X_no_match;;
      *)
 let disj_list nts = List.fold_right disj nts nt_none;;
 
-(* kind of like lazy-eval: supposed to handle recursive CFG like A->A|B*)
+(* kind of like lazy-eval: supposed to handle recursive CFG like A->A|B
+To implement recursive parsers, we need to delay the evaluation of the recursive non-terminal
+▶ A thunk is a procedure that takes zero arguments
+▶ Thunks are used to delay evaluation*)
 let delayed thunk s =
   thunk() s;;
 
-
+(*parser that recognizes the end of the
+input stream (and fails otherwise)*)
 let nt_end_of_input = function
   | []  -> ([], [])
   | _ -> raise X_no_match;;
@@ -118,8 +133,9 @@ let plus nt =
   pack (caten nt (star nt))
        (fun (e, es) -> (e :: es));;
 
-(* given a non-terminal, a bool func(pred) and a list -> 
-    applies non-terminal to list, and applies pred to first char of result, if true -> returns result*)
+(* We might want to attach an arbitrary predicate to serve as a guard
+for a parser, so that the parser succeeds only if the matched object
+satisfies the guard.*)
 let guard nt pred s =
   let ((e, _) as result) = (nt s) in
   if (pred e) then result
@@ -150,7 +166,7 @@ let not_followed_by nt1 nt2 s =
   | None -> raise X_no_match
   | Some(result) -> result;;
 	  
-    (*applies nt on s, if there's no match, (None,s) is returned instead of raising error, and (Some(e), s) otherwise*)
+(*applies nt on s, if there's no match, (None,s) is returned instead of raising error, and (Some(e), s) otherwise*)
 let maybe nt s =
   try let (e, s) = (nt s) in
       (Some(e), s)
