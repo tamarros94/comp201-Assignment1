@@ -46,7 +46,8 @@ exception X_not_yet_implemented;;
 
 exception X_no_match;;
 
-(* takes pred (bool func) and applies it to list -> returns first char of list (if pred returns true on it) and rest of list *)
+(* The const PC takes a predicate (char -> bool), and return a
+parser that recognizes this character *)
 let const pred =
   function 
   | [] -> raise X_no_match
@@ -103,7 +104,7 @@ let nt_end_of_input = function
   | []  -> ([], [])
   | _ -> raise X_no_match;;
 
-(* given a non-terminal and a list -> returns all production rules possibilities contcatinated*)
+(* applies nt on every element on the list s until there's no match*)
 let rec star nt s =
   try let (e, s) = (nt s) in
       let (es, s) = (star nt s) in
@@ -124,7 +125,11 @@ let guard nt pred s =
   if (pred e) then result
   else raise X_no_match;;
   
-  (* applies nt1 on s and then nt2 on the same s. 
+  (* applies nt1 on s and then nt2 on the same s.
+  Scenarios:
+    1. nt1 raises X_no_match -> diff raises throws X_no_match
+    2. nt1 passes + nt2 throws X_no_match -> 1st part is matched with 'Some' and result is returned
+    3. nt1 passes + nt2 passes -> 1st part is matched with 'None' and diff raises X_no_match 
   returns a parser that accepts the language of nt1 WITHOUT the language of nt2
   e.g: I want nt_no_digits then I can run diff nt_all nt_digits*)
 let diff nt1 nt2 s =
@@ -145,6 +150,7 @@ let not_followed_by nt1 nt2 s =
   | None -> raise X_no_match
   | Some(result) -> result;;
 	  
+    (*applies nt on s, if there's no match, (None,s) is returned instead of raising error, and (Some(e), s) otherwise*)
 let maybe nt s =
   try let (e, s) = (nt s) in
       (Some(e), s)
