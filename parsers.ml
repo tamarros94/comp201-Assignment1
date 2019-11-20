@@ -93,25 +93,10 @@ nt;;
 
 (*3.3.2 Number*)
 let digit = range '0' '9';;
-(* let tok_num =
-    let digits = plus digit in
-    pack digits (fun (ds) -> Number (Int(int_of_string (list_to_string ds))));; *)
 let not_digit = const (fun ch -> ch < '0' || ch > '9');;
 
-(* let nt_int = 
-    let nt_end_of_num = disj not_digit (pack nt_end_of_input (fun (dummy) -> 'a')) in
-    let nt_ignore_zeros = star (not_followed_by (char '0') nt_end_of_num) in
-    let nt_body = pack (caten nt_ignore_zeros (plus digit)) (function (_, e) -> int_of_string ((list_to_string e))) in
-    let nt_plus_op = char '+' in
-    let nt_minus_op = char '-' in
-    let nt_op = disj nt_minus_op nt_plus_op in
-    let nt_signed = pack (caten nt_op nt_body) 
-    (function (op,num) -> if (op = '-') then (-1)*(num) else num) in
-    let nt = pack (disj nt_signed nt_body) (fun e -> Int(e)) in                                                                                                                                                        
-    nt;; *)
-
 let nt_int = 
-    let nt_body = pack (plus digit) (function e -> int_of_string ((list_to_string e))) in
+    let nt_body = pack (not_followed_by (plus digit) (char '.')) (function e -> int_of_string ((list_to_string e))) in
     let nt_plus_op = char '+' in
     let nt_minus_op = char '-' in
     let nt_op = disj nt_minus_op nt_plus_op in
@@ -126,56 +111,19 @@ let nt_form = caten (plus digit) (caten nt_dot (plus digit)) ;;
 let nt_float =
     let nt_dot = char '.' in
     let nt_form = caten (plus digit) (caten nt_dot (plus digit)) in
-    let nt_body = pack nt_form (function (a,b) -> let lst = a::b in float_of_string ((list_to_string lst))) in
+    let nt_body = pack nt_form 
+    (function (a,(b, c)) -> float_of_string ((list_to_string a) ^ "." ^ (list_to_string c))) in
     let nt_plus_op = char '+' in
     let nt_minus_op = char '-' in
     let nt_op = disj nt_minus_op nt_plus_op in
     let nt_signed = pack (caten nt_op nt_body) 
-    (function (op,num) -> if (op = '-') then (-1)*(num) else num) in
+    (function (op,num) -> if (op = '-') then (-1.0)*.(num) else num) in
     let nt = pack (disj nt_signed nt_body) (fun e -> Float(e)) in                                                                                                                                                        
     nt;;
-(* 
-let nt_float = 
-    let  *)
-(* parser that reads hex number and returns decimal rep *)
-let nt_hex =
-  let make_NT_digit ch_from ch_to displacement =
-    let nt = const (fun ch -> ch_from <= ch && ch <= ch_to) in
-    let nt = pack nt (let delta = (Char.code ch_from) - displacement in
-		      fun ch -> (Char.code ch) - delta) in
-    nt in
-  let nt = disj (make_NT_digit '0' '9' 0)
-		(make_NT_digit 'a' 'f' 10) in
-  let nt = disj nt (make_NT_digit 'A' 'F' 10) in
-  let nt = plus nt in
-  let nt = pack nt (fun digits ->
-		    List.fold_left (fun a b -> 16 * a + b) 0 digits) in
-  let nt = caten (word_ci "0x") nt in
-  let nt = pack nt (function (_0x, e) -> e) in  
-  (* let nt1 = caten (word_ci "0x") nt in
-  let nt1 = pack nt1 (function (_0x, e) -> e) in
-  let nt2 = caten nt (word_ci "h")  in
-  let nt2 = pack nt2 (function (h_, e) -> e) in
-  let nt = disj nt1 nt2 in *)
-  make_spaced nt;;
+let nt_number = pack (disj nt_int nt_float) (function e -> Number(e))
 
-  (* parser that reads parenthesi *)
-let make_nt_parenthesized_expr nt =
-  let nt1 = make_paired (make_spaced (char '(')) 
-			(make_spaced (char ')')) nt in
-  let nt2 = make_paired (make_spaced (char '[')) 
-			(make_spaced (char ']')) nt in
-  let nt3 = make_paired (make_spaced (char '{'))
-			(make_spaced (char '}')) nt in
-  let nt = disj nt1 (disj nt2 nt3) in
-  nt;;
+(*3.3.3 Symbol*)
 
-(*	 <expr> ::= <L0>
-	   <L0> ::= <L1> {`+' <L1> }*
-	   <L1> ::= <L2> {`*' <L2> }*
-	   <L2> ::= <L3> {`^' <L3> }*
-	   <L3> ::= <Number> | <Parenthesized>
-<Parenthesized> ::= `(' <L0> `)' | `[' <L0> `]' | `{' <L0> `}' *)
 
 
 
