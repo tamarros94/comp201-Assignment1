@@ -6,7 +6,8 @@ open NT;;
 
 test_string (make_spaced (word("moshe"))) "   moshe   ";;
 test_string nt_hex "    0x35";;
-test_string nt_boolean "/#f";;
+(* test_string nt_boolean "         #t";; *)
+test_string tok_num "1.0";;
 
 
   (* let nt_expr = 

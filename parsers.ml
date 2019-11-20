@@ -46,10 +46,18 @@ exception X_no_match;;
 
 (*abstract parsers*)
 let nt_all_but c = star (const (fun ch -> ch != c))
-
+(* abstract parser that skips nt_right and nt_left results from left and right of nt *)
+let make_paired nt_left nt_right nt =
+  let nt = caten nt_left nt in
+  let nt = pack nt (function (_, e) -> e) in
+  let nt = caten nt nt_right in
+  let nt = pack nt (function (e, _) -> e) in
+  nt;;
 
 (* 3.2.1 Whitespaces *)
 let nt_whitespace = const (fun ch -> ch <= ' ');;
+(* parser that skips whitesapes from left and right of nt *)
+let make_spaced nt = make_paired (star nt_whitespace) (star nt_whitespace) nt;;
 
 (* 3.2.2 Line comments *)
 let nt_comment_line = 
@@ -71,22 +79,25 @@ let nt_comment_line =
 
 (*3.3.1 Boolean*)
 let nt_boolean =
-    let nt_false = word_ci "#f" in
-    let nt_true = word_ci "#t" in
+    let nt_hashtag = char '#' in
+    let nt_f = word_ci "f" in
+    let nt_t = word_ci "t" in
+    let nt_false = pack nt_f (fun f -> false) in
+    let nt_true = pack nt_t (fun t -> true) in
     let nt = disj nt_false nt_true in
+    let nt = caten nt_hashtag nt in
     let nt = make_spaced nt in
-    let nt = pack nt (fun (_e) -> (Bool e)) in
+    (* let nt = pack nt (function (_, false) -> (Bool false)) in  *)
+    let nt = pack nt (function (_0x, e) -> (Bool e)) in
 nt;;
-(* abstract parser that skips nt_right and nt_left results from left and right of nt *)
-let make_paired nt_left nt_right nt =
-  let nt = caten nt_left nt in
-  let nt = pack nt (function (_, e) -> e) in
-  let nt = caten nt nt_right in
-  let nt = pack nt (function (e, _) -> e) in
-  nt;;
 
-(* parser that skips whitesapes from left and right of nt *)
-let make_spaced nt = make_paired (star nt_whitespace) (star nt_whitespace) nt;;
+(*3.3.2 Number*)
+let digit = range '0' '9';;
+(* let tok_num =
+    let digits = plus digit in
+    pack digits (fun (ds) -> Number (Int(int_of_string (list_to_string ds))));; *)
+
+let nt_int = 
 
 (* parser that reads hex number and returns decimal rep *)
 let nt_hex =
