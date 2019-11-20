@@ -96,9 +96,47 @@ let digit = range '0' '9';;
 (* let tok_num =
     let digits = plus digit in
     pack digits (fun (ds) -> Number (Int(int_of_string (list_to_string ds))));; *)
+let not_digit = const (fun ch -> ch < '0' || ch > '9');;
+
+(* let nt_int = 
+    let nt_end_of_num = disj not_digit (pack nt_end_of_input (fun (dummy) -> 'a')) in
+    let nt_ignore_zeros = star (not_followed_by (char '0') nt_end_of_num) in
+    let nt_body = pack (caten nt_ignore_zeros (plus digit)) (function (_, e) -> int_of_string ((list_to_string e))) in
+    let nt_plus_op = char '+' in
+    let nt_minus_op = char '-' in
+    let nt_op = disj nt_minus_op nt_plus_op in
+    let nt_signed = pack (caten nt_op nt_body) 
+    (function (op,num) -> if (op = '-') then (-1)*(num) else num) in
+    let nt = pack (disj nt_signed nt_body) (fun e -> Int(e)) in                                                                                                                                                        
+    nt;; *)
 
 let nt_int = 
+    let nt_body = pack (plus digit) (function e -> int_of_string ((list_to_string e))) in
+    let nt_plus_op = char '+' in
+    let nt_minus_op = char '-' in
+    let nt_op = disj nt_minus_op nt_plus_op in
+    let nt_signed = pack (caten nt_op nt_body) 
+    (function (op,num) -> if (op = '-') then (-1)*(num) else num) in
+    let nt = pack (disj nt_signed nt_body) (fun e -> Int(e)) in                                                                                                                                                        
+    nt;;    
 
+let nt_dot = char '.' ;;
+let nt_form = caten (plus digit) (caten nt_dot (plus digit)) ;;
+
+let nt_float =
+    let nt_dot = char '.' in
+    let nt_form = caten (plus digit) (caten nt_dot (plus digit)) in
+    let nt_body = pack nt_form (function (a,b) -> let lst = a::b in float_of_string ((list_to_string lst))) in
+    let nt_plus_op = char '+' in
+    let nt_minus_op = char '-' in
+    let nt_op = disj nt_minus_op nt_plus_op in
+    let nt_signed = pack (caten nt_op nt_body) 
+    (function (op,num) -> if (op = '-') then (-1)*(num) else num) in
+    let nt = pack (disj nt_signed nt_body) (fun e -> Float(e)) in                                                                                                                                                        
+    nt;;
+(* 
+let nt_float = 
+    let  *)
 (* parser that reads hex number and returns decimal rep *)
 let nt_hex =
   let make_NT_digit ch_from ch_to displacement =
