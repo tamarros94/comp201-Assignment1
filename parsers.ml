@@ -86,15 +86,14 @@ let nt_boolean =
     let nt_true = pack nt_t (fun t -> true) in
     let nt = disj nt_false nt_true in
     let nt = caten nt_hashtag nt in
-    let nt = make_spaced nt in
     (* let nt = pack nt (function (_, false) -> (Bool false)) in  *)
     let nt = pack nt (function (_0x, e) -> (Bool e)) in
-nt;;
+(make_spaced nt);;
 
 (*3.3.2 Number*)
 let digit = range '0' '9';;
 let not_digit = const (fun ch -> ch < '0' || ch > '9');;
-
+(*int*)
 let nt_int = 
     let nt_body = pack (not_followed_by (plus digit) (char '.')) (function e -> int_of_string ((list_to_string e))) in
     let nt_plus_op = char '+' in
@@ -103,11 +102,11 @@ let nt_int =
     let nt_signed = pack (caten nt_op nt_body) 
     (function (op,num) -> if (op = '-') then (-1)*(num) else num) in
     let nt = pack (disj nt_signed nt_body) (fun e -> Int(e)) in                                                                                                                                                        
-    nt;;    
+    (make_spaced nt);;    
 
 let nt_dot = char '.' ;;
 let nt_form = caten (plus digit) (caten nt_dot (plus digit)) ;;
-
+(*float*)
 let nt_float =
     let nt_dot = char '.' in
     let nt_form = caten (plus digit) (caten nt_dot (plus digit)) in
@@ -119,10 +118,54 @@ let nt_float =
     let nt_signed = pack (caten nt_op nt_body) 
     (function (op,num) -> if (op = '-') then (-1.0)*.(num) else num) in
     let nt = pack (disj nt_signed nt_body) (fun e -> Float(e)) in                                                                                                                                                        
-    nt;;
-let nt_number = pack (disj nt_int nt_float) (function e -> Number(e))
+    (make_spaced nt);;
+    (*number*)
+let nt_number = make_spaced (pack (disj nt_int nt_float) (function e -> Number(e)));;
 
 (*3.3.3 Symbol*)
+let nt_symbol =
+    let lowercase_letters = range 'a' 'z' in
+    let uppercase_letters = range 'A' 'Z' in
+    let punctuation = disj_list [char '.';char '!'; char '$'; char '^'; char '*'; char '-'; char '_'; char '='; char '+'; char '<'; char '>'; char '/'; char '?'] in    
+    let norm_uppercase = pack uppercase_letters lowercase_ascii in
+    let nt = disj_list [lowercase_letters; norm_uppercase; punctuation; digit] in
+    let nt = star nt in
+    let nt = pack nt (fun e -> let str = list_to_string e in Symbol(str)) in
+    make_spaced nt;;
+
+(*3.3.4 String*)
+let nt_string = 
+    let string_literal_char = diff nt_any (disj (char (char_of_int 34)) (char (char_of_int 92))) in
+    let string_meta_char = disj_list [
+        pack (word "\\\\") (fun e -> char_of_int 92);
+        pack (word "\\\"") (fun e -> char_of_int 34);
+        pack (word "\\t") (fun e -> char_of_int 9);
+        pack (word "\\f") (fun e -> char_of_int 12);
+        pack (word "\\n") (fun e -> char_of_int 10);
+        pack (word "\\r") (fun e -> char_of_int 13)
+        ] in
+    let nt_body = disj string_literal_char string_meta_char in
+    let nt_double_quote = char (char_of_int (34)) in
+    let nt = caten nt_double_quote (caten (star nt_body) nt_double_quote) in
+    let nt = pack nt (fun (_, (e, _)) -> String(list_to_string e)) in
+    make_spaced nt;;
+
+(*3.3.5 Char*)
+let nt_char =
+    let char_prefix = word "#\\" in
+    let visible_simple_char = const (fun ch -> (int_of_char ch) > 32) in
+    let named_char = disj_list [
+        pack (word "nul") (fun e -> char_of_int 0);
+        pack (word "newline") (fun e -> char_of_int 10);
+        pack (word "return") (fun e -> char_of_int 13);
+        pack (word "tab") (fun e -> char_of_int 9);
+        pack (word "page") (fun e -> char_of_int 12);
+        pack (word "space") (fun e -> char_of_int 32)
+        ] in
+    let nt = disj visible_simple_char named_char in
+    let nt = pack (caten char_prefix nt) (fun (_, e) -> Char(e)) in
+    make_spaced nt;;
+
 
 
 
