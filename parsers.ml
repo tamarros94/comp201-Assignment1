@@ -44,6 +44,9 @@ exception X_not_yet_implemented;;
 
 exception X_no_match;;
 
+exception X_this_should_not_happen;;
+
+
 (*abstract parsers*)
 (* abstract parser that skips nt_right and nt_left results from left and right of nt *)
 let make_paired nt_left nt_right nt =
@@ -71,8 +74,8 @@ let nt_comment_line =
     
 let make_commented nt = make_paired (star nt_comment_line) (star nt_comment_line) nt;;
 
-let whitespace_or_comment = disj (pack nt_whitespace (fun e -> Nil)) nt_comment_line ;;
-let make_spaced_or_commented nt = make_paired (star whitespace_or_comment) (star whitespace_or_comment) nt;;
+(* let whitespace_or_comment = disj (pack nt_whitespace (fun e -> Nil)) nt_comment_line ;;
+let make_spaced_or_commented nt = make_paired (star whitespace_or_comment) (star whitespace_or_comment) nt;; *)
 
 (* 3.2.3 Sexpr comments *)
 (* let nt_comment_sexpr = 
@@ -122,17 +125,22 @@ let nt_float =
     let nt = pack (disj nt_signed nt_body) (fun e -> Float(e)) in                                                                                                                                                        
     (make_spaced nt);;
     (*number*)
-let nt_number = pack (disj nt_int nt_float) (function e -> Number(e));;
 
 (*3.3.3 Symbol*)
 let nt_symbol =
     let lowercase_letters = range 'a' 'z' in
     let uppercase_letters = range 'A' 'Z' in
-    let punctuation = disj_list [char '.';char '!'; char '$'; char '^'; char '*'; char '-'; char '_'; char '='; char '+'; char '<'; char '>'; char '/'; char '?'] in    
+    let punctuation = disj_list [char ':';char '!'; char '$'; char '^'; char '*'; char '-'; char '_'; char '='; char '+'; char '<'; char '>'; char '/'; char '?'] in    
     let norm_uppercase = pack uppercase_letters lowercase_ascii in
     let nt = disj_list [lowercase_letters; norm_uppercase; punctuation; digit] in
     let nt = plus nt in
     let nt = pack nt (fun e -> let str = list_to_string e in Symbol(str)) in
+    nt;;
+
+let nt_number = 
+    let nt = disj nt_int nt_float in
+    let nt = not_followed_by nt nt_symbol in
+    let nt = pack nt (function e -> Number(e)) in
     nt;;
 
 (*3.3.4 String*)
@@ -194,23 +202,90 @@ let rec nt_sexpr str =
             nt_number;
             nt_string;
             nt_symbol;
-            nt_list
-            (*
-            nt_dotted_list
-            nt_quote
-            nt_quasi_quote
-            nt_unquote_and_splice
-            nt_tag_expr
-            *)] in
+            nt_list;
+            nt_dotted_list;
+            nt_quote;
+            nt_quasi_quote;
+            nt_unquote;
+            nt_unquote_and_splice;
+            (* nt_tag_expr; *)
+            nt_comment_sexpr
+           ] in
     (make_spaced_or_commented sexpr_disj) str
     and nt_list s = 
         let prefix = char '(' in
         let postfix = char ')' in
-        let body = caten prefix (caten (star nt_sexpr) postfix) in
-        pack body (
+        let body = star nt_sexpr in
+        let nt = caten prefix (caten body postfix) in
+        pack nt (
             function (_,(e,_)) -> match e with
             |[] -> Nil
             |lst -> List.fold_right (fun sexpr1 sexpr2 -> Pair(sexpr1, sexpr2)) lst Nil
-        ) s;;
+        ) s
+    and nt_dotted_list s = 
+        let prefix = char '(' in
+        let postfix = char ')' in
+        let nt_dot = char '.' in
+        let body = caten (plus nt_sexpr) (caten nt_dot nt_sexpr) in
+        let nt = caten prefix (caten body postfix) in
+        pack nt (
+            function (_,(e,_)) -> match e with
+            |(a, (_, b)) -> List.fold_right (fun sexpr1 sexpr2 -> Pair(sexpr1, sexpr2)) a b
+        ) s
+    and nt_quote s = 
+        let prefix = word "'" in
+        let nt = caten prefix nt_sexpr in
+        pack nt (function (_, e) -> Pair(Symbol("quote"), Pair(e, Nil)))
+        s
+    and nt_quasi_quote s = 
+        let prefix = word "`" in
+        let nt = caten prefix nt_sexpr in
+        pack nt (function (_, e) -> Pair(Symbol("quasiquote"), Pair(e, Nil)))
+        s
+    and nt_unquote s = 
+        let prefix = word "," in
+        let nt = caten prefix nt_sexpr in
+        pack nt (function (_, e) -> Pair(Symbol("unquote"), Pair(e, Nil)))
+        s
+    and nt_unquote_and_splice s = 
+        let prefix = word ",@" in
+        let nt = caten prefix nt_sexpr in
+        pack nt (function (_, e) -> Pair(Symbol("unquote-splicing"), Pair(e, Nil)))
+        s
+    and nt_comment_sexpr s =
+        let prefix = word "#;" in
+        let body = nt_sexpr in
+        let nt = caten prefix body in
+        (pack nt (fun e -> Nil)) 
+        s
+    and make_spaced_or_commented s = 
+        let whitespace_or_comment = disj_list [(pack nt_whitespace (fun e -> Nil));nt_comment_line;nt_comment_sexpr] in
+        let nt1 nt = make_paired (star whitespace_or_comment) (star whitespace_or_comment) nt in
+        nt1 s;;
 
-end;; (* end of struct PC *)
+    (* and nt_tag_expr s =
+        let prefix = word "#{" in
+        let postfix = word "}" in
+        let eq_sign = word "=" in
+        let symbol_name = pack nt_symbol (
+            function e -> match e with
+            | Symbol(name) -> name) in
+        let nt_ref = caten prefix (caten (symbol_name) postfix) in
+        let nt_tag_prefix = caten nt_ref eq_sign in
+        let nt_tag = caten nt_tag_prefix nt_sexpr in
+        let nt = pack nt_tag 
+        (function  (((_, (name, _)),_), (sexp,_)) -> 
+            let rec throw_err_if_tagged_twice sexp_rec = 
+                let is_same_tag = sexpr_eq sexp_rec Tag(name, sexp) in
+                if is_same_tag then raise X_this_should_not_happen else match sexp_rec with 
+                    | (a,b) -> if (sexpr_eq a Tag(name, sexp)) then raise X_this_should_not_happen else
+                        throw_err_if_tagged_twice b
+                    | e -> None
+                   
+            in        
+            throw_err_if_tagged_twice sexp) in
+        nt;;       *)
+
+
+    
+        end;; (* end of struct PC *)
