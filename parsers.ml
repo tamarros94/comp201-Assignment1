@@ -69,6 +69,10 @@ let nt_comment_line =
     let nt = pack nt (fun e -> Nil) in
     make_spaced nt;;
     
+let make_commented nt = make_paired (star nt_comment_line) (star nt_comment_line) nt;;
+
+let whitespace_or_comment = disj (pack nt_whitespace (fun e -> Nil)) nt_comment_line ;;
+let make_spaced_or_commented nt = make_paired (star whitespace_or_comment) (star whitespace_or_comment) nt;;
 
 (* 3.2.3 Sexpr comments *)
 (* let nt_comment_sexpr = 
@@ -86,7 +90,7 @@ let nt_boolean =
     let nt = caten nt_hashtag nt in
     (* let nt = pack nt (function (_, false) -> (Bool false)) in  *)
     let nt = pack nt (function (_0x, e) -> (Bool e)) in
-(make_spaced nt);;
+nt;;
 
 (*3.3.2 Number*)
 let digit = range '0' '9';;
@@ -118,7 +122,7 @@ let nt_float =
     let nt = pack (disj nt_signed nt_body) (fun e -> Float(e)) in                                                                                                                                                        
     (make_spaced nt);;
     (*number*)
-let nt_number = make_spaced (pack (disj nt_int nt_float) (function e -> Number(e)));;
+let nt_number = pack (disj nt_int nt_float) (function e -> Number(e));;
 
 (*3.3.3 Symbol*)
 let nt_symbol =
@@ -127,9 +131,9 @@ let nt_symbol =
     let punctuation = disj_list [char '.';char '!'; char '$'; char '^'; char '*'; char '-'; char '_'; char '='; char '+'; char '<'; char '>'; char '/'; char '?'] in    
     let norm_uppercase = pack uppercase_letters lowercase_ascii in
     let nt = disj_list [lowercase_letters; norm_uppercase; punctuation; digit] in
-    let nt = star nt in
+    let nt = plus nt in
     let nt = pack nt (fun e -> let str = list_to_string e in Symbol(str)) in
-    make_spaced nt;;
+    nt;;
 
 (*3.3.4 String*)
 let nt_string = 
@@ -146,7 +150,7 @@ let nt_string =
     let nt_double_quote = char (char_of_int (34)) in
     let nt = caten nt_double_quote (caten (star nt_body) nt_double_quote) in
     let nt = pack nt (fun (_, (e, _)) -> String(list_to_string e)) in
-    make_spaced nt;;
+    nt;;
 
 (*3.3.5 Char*)
 let nt_char =
@@ -162,16 +166,51 @@ let nt_char =
         ] in
     let nt = disj visible_simple_char named_char in
     let nt = pack (caten char_prefix nt) (fun (_, e) -> Char(e)) in
-    make_spaced nt;;
+    nt;;
 
+(*3.3.6 Nil*)
 let nt_nil = 
     let prefix = char '(' in
     let postfix = char ')' in
     let body = disj nt_comment_line (pack nt_whitespace (fun e -> Nil)) in
     let nt = caten prefix (caten (star body) postfix) in
     let nt = pack nt (fun e -> Nil) in
-    make_spaced nt;;
+    nt;;
+
+(*3.3.7 Pair*)
+(* let nt_proper_list =
+    let prefix = char '(' in
+    let postfix = char ')' in
+    let rec nt_proper_list_rec () =  *)
 
 
+
+(* sexp *)
+
+let rec nt_sexpr str = 
+    let sexpr_disj = disj_list [
+            nt_boolean;
+            nt_char;
+            nt_number;
+            nt_string;
+            nt_symbol;
+            nt_list
+            (*
+            nt_dotted_list
+            nt_quote
+            nt_quasi_quote
+            nt_unquote_and_splice
+            nt_tag_expr
+            *)] in
+    (make_spaced_or_commented sexpr_disj) str
+    and nt_list s = 
+        let prefix = char '(' in
+        let postfix = char ')' in
+        let body = caten prefix (caten (star nt_sexpr) postfix) in
+        pack body (
+            function (_,(e,_)) -> match e with
+            |[] -> Nil
+            |lst -> List.fold_right (fun sexpr1 sexpr2 -> Pair(sexpr1, sexpr2)) lst Nil
+        ) s;;
 
 end;; (* end of struct PC *)
