@@ -14,5 +14,5 @@ open NT;;
 (* test_string nt_symbol "a";; *)
 (* test_string nt_string "   \"  blabla \\t \\\" \" ";; *)
 
-test_string nt_comment_line ";kkjkjk 
-  lklkj";;
+test_string nt_nil "(;kkjkjk    ;blabla 
+)lklkj";;

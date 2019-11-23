@@ -66,7 +66,7 @@ let nt_comment_line =
     let nt_end_of_comment = disj nt_eol (pack nt_end_of_input (fun (dummy) -> 'd')) in
     let nt = caten nt_semicolon (star nt_all_but_eol) in
     let nt = caten nt nt_end_of_comment in
-    let nt = pack nt (fun e -> 'd') in
+    let nt = pack nt (fun e -> Nil) in
     make_spaced nt;;
     
 
@@ -167,8 +167,8 @@ let nt_char =
 let nt_nil = 
     let prefix = char '(' in
     let postfix = char ')' in
-    let body = disj (star nt_comment_line) (star nt_whitespace) in
-    let nt = caten prefix (caten body postfix) in
+    let body = disj nt_comment_line (pack nt_whitespace (fun e -> Nil)) in
+    let nt = caten prefix (caten (star body) postfix) in
     let nt = pack nt (fun e -> Nil) in
     make_spaced nt;;
 
