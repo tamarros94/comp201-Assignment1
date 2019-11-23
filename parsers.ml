@@ -45,7 +45,6 @@ exception X_not_yet_implemented;;
 exception X_no_match;;
 
 (*abstract parsers*)
-let nt_all_but c = star (const (fun ch -> ch != c))
 (* abstract parser that skips nt_right and nt_left results from left and right of nt *)
 let make_paired nt_left nt_right nt =
   let nt = caten nt_left nt in
@@ -61,15 +60,14 @@ let make_spaced nt = make_paired (star nt_whitespace) (star nt_whitespace) nt;;
 
 (* 3.2.2 Line comments *)
 let nt_comment_line = 
-    let nt_semicolon = const (fun ch -> ch ==';') in
-    let nt_eol = const (fun ch -> ch == '\n') in
-    let nt_all_but_eol = nt_all_but '\n' in
-    let nt_end_of_comment = disj nt_eol (pack nt_end_of_input (fun (dummy) -> 'a')) in
-    let nt = caten nt_semicolon nt_all_but_eol in
+    let nt_semicolon = char ';' in
+    let nt_eol = char (char_of_int 10) in
+    let nt_all_but_eol = diff nt_any nt_eol in
+    let nt_end_of_comment = disj nt_eol (pack nt_end_of_input (fun (dummy) -> 'd')) in
+    let nt = caten nt_semicolon (star nt_all_but_eol) in
     let nt = caten nt nt_end_of_comment in
-    (pack nt (fun (dummy) -> Nil));;
-
-
+    let nt = pack nt (fun e -> 'd') in
+    make_spaced nt;;
     
 
 (* 3.2.3 Sexpr comments *)
@@ -166,7 +164,13 @@ let nt_char =
     let nt = pack (caten char_prefix nt) (fun (_, e) -> Char(e)) in
     make_spaced nt;;
 
-
+let nt_nil = 
+    let prefix = char '(' in
+    let postfix = char ')' in
+    let body = disj (star nt_comment_line) (star nt_whitespace) in
+    let nt = caten prefix (caten body postfix) in
+    let nt = pack nt (fun e -> Nil) in
+    make_spaced nt;;
 
 
 
