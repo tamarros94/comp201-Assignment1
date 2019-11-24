@@ -14,5 +14,5 @@ open NT;;
 (* test_string nt_symbol "a";; *)
 (* test_string nt_string "   \"  blabla \\t \\\" \" ";; *)
 
-test_string nt_sexpr "235";; 
-test_string nt_sexpr "\#;5n";;     
+(* test_string nt_sexpr "235";;  *)
+test_string nt_sexpr " ~~ 5 6 6";;     

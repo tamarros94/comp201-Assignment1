@@ -72,7 +72,7 @@ let nt_comment_line =
     let nt = pack nt (fun e -> Nil) in
     make_spaced nt;;
     
-let make_commented nt = make_paired (star nt_comment_line) (star nt_comment_line) nt;;
+(* let make_commented nt = make_paired (star nt_comment_line) (star nt_comment_line) nt;; *)
 
 (* let whitespace_or_comment = disj (pack nt_whitespace (fun e -> Nil)) nt_comment_line ;;
 let make_spaced_or_commented nt = make_paired (star whitespace_or_comment) (star whitespace_or_comment) nt;; *)
@@ -253,13 +253,14 @@ let rec nt_sexpr str =
         pack nt (function (_, e) -> Pair(Symbol("unquote-splicing"), Pair(e, Nil)))
         s
     and nt_comment_sexpr s =
-        let prefix = word "#;" in
+        let prefix = word "~" in
         let body = nt_sexpr in
         let nt = caten prefix body in
         (pack nt (fun e -> Nil)) 
         s
     and make_spaced_or_commented s = 
-        let whitespace_or_comment = disj_list [(pack nt_whitespace (fun e -> Nil));nt_comment_line;nt_comment_sexpr] in
+        let nt_not_last_comment_sexpr = not_followed_by (pack nt_comment_sexpr (fun e -> Nil)) (pack (nt_end_of_input) (fun e -> Nil)) in
+        let whitespace_or_comment = disj_list [(pack nt_whitespace (fun e -> Nil));nt_comment_line;nt_not_last_comment_sexpr] in
         let nt1 nt = make_paired (star whitespace_or_comment) (star whitespace_or_comment) nt in
         nt1 s;;
 
