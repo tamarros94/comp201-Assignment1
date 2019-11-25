@@ -95,9 +95,22 @@ let nt_boolean =
     let nt = pack nt (function (_0x, e) -> (Bool e)) in
 nt;;
 
-(*3.3.2 Number*)
+(*3.3.3 Symbol*)
 let digit = range '0' '9';;
+
+let nt_symbol =
+    let lowercase_letters = range 'a' 'z' in
+    let uppercase_letters = range 'A' 'Z' in
+    let punctuation = disj_list [char ':';char '!'; char '$'; char '^'; char '*'; char '-'; char '_'; char '='; char '+'; char '<'; char '>'; char '/'; char '?'] in    
+    let norm_uppercase = pack uppercase_letters lowercase_ascii in
+    let nt = disj_list [lowercase_letters; norm_uppercase; punctuation; digit] in
+    let nt = plus nt in
+    let nt = pack nt (fun e -> let str = list_to_string e in Symbol(str)) in
+    nt;;
+
+(*3.3.2 Number*)
 let not_digit = const (fun ch -> ch < '0' || ch > '9');;
+
 (*int*)
 let nt_int = 
     let nt_body = pack (not_followed_by (plus digit) (char '.')) (function e -> int_of_string ((list_to_string e))) in
@@ -106,11 +119,14 @@ let nt_int =
     let nt_op = disj nt_minus_op nt_plus_op in
     let nt_signed = pack (caten nt_op nt_body) 
     (function (op,num) -> if (op = '-') then (-1)*(num) else num) in
-    let nt = pack (disj nt_signed nt_body) (fun e -> Int(e)) in                                                                                                                                                        
-    (make_spaced nt);;    
+    let nt = disj nt_signed nt_body in
+    nt;;
 
-let nt_dot = char '.' ;;
-let nt_form = caten (plus digit) (caten nt_dot (plus digit)) ;;
+
+let nt_int_packed = 
+    let nt = not_followed_by nt_int nt_symbol in
+    pack nt (fun e -> Int(e));;
+ 
 (*float*)
 let nt_float =
     let nt_dot = char '.' in
@@ -122,24 +138,29 @@ let nt_float =
     let nt_op = disj nt_minus_op nt_plus_op in
     let nt_signed = pack (caten nt_op nt_body) 
     (function (op,num) -> if (op = '-') then (-1.0)*.(num) else num) in
-    let nt = pack (disj nt_signed nt_body) (fun e -> Float(e)) in                                                                                                                                                        
-    (make_spaced nt);;
+    let nt = disj nt_signed nt_body in
+    nt;;
     (*number*)
 
-(*3.3.3 Symbol*)
-let nt_symbol =
-    let lowercase_letters = range 'a' 'z' in
-    let uppercase_letters = range 'A' 'Z' in
-    let punctuation = disj_list [char ':';char '!'; char '$'; char '^'; char '*'; char '-'; char '_'; char '='; char '+'; char '<'; char '>'; char '/'; char '?'] in    
-    let norm_uppercase = pack uppercase_letters lowercase_ascii in
-    let nt = disj_list [lowercase_letters; norm_uppercase; punctuation; digit] in
-    let nt = plus nt in
-    let nt = pack nt (fun e -> let str = list_to_string e in Symbol(str)) in
+let nt_float_packed = 
+    let nt_symbols_not_e = diff nt_symbol (word_ci "e") in
+    let nt = not_followed_by nt_float nt_symbols_not_e in
+    pack nt (fun e -> Float(e));;
+    
+    (*number*)
+
+(*4.1 Scientific notation*)
+let nt_scientific_notation = 
+    let nt_int_to_float = pack nt_int (fun e -> float_of_int e) in
+    let nt = disj nt_int_to_float nt_float in
+    let nt_e = word_ci "e" in
+    let nt = caten nt (caten nt_e nt_int_to_float) in
+    (* let nt = not_followed_by nt nt_symbol in *)
+    let nt = pack nt (fun (num, (e, exp)) -> let n = num *. (10. ** exp) in Float(n)) in
     nt;;
 
 let nt_number = 
-    let nt = disj nt_int nt_float in
-    let nt = not_followed_by nt nt_symbol in
+    let nt = disj_list [nt_scientific_notation;nt_float_packed; nt_int_packed] in
     let nt = pack nt (function e -> Number(e)) in
     nt;;
 
@@ -207,9 +228,9 @@ let rec nt_sexpr str =
             nt_quote;
             nt_quasi_quote;
             nt_unquote;
-            nt_unquote_and_splice;
+            nt_unquote_and_splice
             (* nt_tag_expr; *)
-            nt_comment_sexpr
+            (* nt_comment_sexpr *)
            ] in
     (make_spaced_or_commented sexpr_disj) str
     and nt_list s = 
@@ -253,14 +274,14 @@ let rec nt_sexpr str =
         pack nt (function (_, e) -> Pair(Symbol("unquote-splicing"), Pair(e, Nil)))
         s
     and nt_comment_sexpr s =
-        let prefix = word "~" in
+        let prefix = word "#;" in
         let body = nt_sexpr in
         let nt = caten prefix body in
         (pack nt (fun e -> Nil)) 
         s
     and make_spaced_or_commented s = 
-        let nt_not_last_comment_sexpr = not_followed_by (pack nt_comment_sexpr (fun e -> Nil)) (pack (nt_end_of_input) (fun e -> Nil)) in
-        let whitespace_or_comment = disj_list [(pack nt_whitespace (fun e -> Nil));nt_comment_line;nt_not_last_comment_sexpr] in
+        (* let nt_not_last_comment_sexpr = not_followed_by (pack nt_comment_sexpr (fun e -> Nil)) (pack (nt_end_of_input) (fun e -> Nil)) in *)
+        let whitespace_or_comment = disj_list [(pack nt_whitespace (fun e -> Nil));nt_comment_line;nt_comment_sexpr] in
         let nt1 nt = make_paired (star whitespace_or_comment) (star whitespace_or_comment) nt in
         nt1 s;;
 
