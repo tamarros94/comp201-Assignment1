@@ -159,6 +159,71 @@ let nt_scientific_notation =
     let nt = pack nt (fun (num, (e, exp)) -> let n = num *. (10. ** exp) in Float(n)) in
     nt;;
 
+
+let make_nt_digit ch_from ch_to displacement =
+    let nt = const (fun ch -> ch_from <= ch && ch <= ch_to) in
+    let nt = pack nt (let delta = (Char.code ch_from) - displacement in
+		      fun ch -> (Char.code ch) - delta) in
+    nt;;
+
+let nt_radix_cal radix =
+  let nt = disj (make_nt_digit '0' '9' 0)
+		(make_nt_digit 'a' 'z' 10) in
+  let nt = disj nt (make_nt_digit 'A' 'Z' 10) in
+  let nt = plus nt in
+  let nt = pack nt (fun digits ->
+		    List.fold_left (fun a b -> radix * a + b) 0 digits) in
+  nt;;
+
+let nt_radix_cal_float radix =
+  let nt = disj (make_nt_digit '0' '9' 0)
+		(make_nt_digit 'a' 'z' 10) in
+  let nt = disj nt (make_nt_digit 'A' 'Z' 10) in
+  let nt = pack nt (fun (e) -> float_of_int e) in
+  let nt = plus nt in
+  let nt = pack nt (fun digits -> List.fold_right (fun a b -> (((float_of_int radix)**(-1)) *. b +. a)) digits 0) in  
+  nt;;
+
+let nt_radix_range = disj_list [digit; range 'a' 'z'; range 'A' 'Z'] ;;
+
+let nt_radix_helper = 
+    let nt_hashtag = char '~' in
+    let nt_r = disj (char 'r') (char 'R') in
+    let nt_dot = char '.' in
+    let body_until_r = caten nt_hashtag (caten nt_int nt_r) in
+
+    let nt_plus_op = char '+' in
+    let nt_minus_op = char '-' in
+    let nt_op = disj nt_minus_op nt_plus_op in
+    let nt_signed = caten body_until_r nt_op in 
+    let nt_signed = pack nt_signed (fun ((_hash, (base,r)), op) -> (op,(_hash, (base,r)))) in
+
+    let nt = disj nt_signed (pack body_until_r (fun (_hash, (base,r)) -> ('+',(_hash, (base,r))))) in
+    let nt = pack nt (fun (op, (_hash, (base,_r))) -> (op, base)) in
+    nt;;
+
+let nt_int_radix = 
+    let nt = not_followed_by (plus nt_radix_range) (char '.') in
+    let nt = caten nt_radix_helper nt in
+    let nt = pack nt (fun ((op,base), num) -> (op, (nt_radix_cal base num))) in
+    let nt = pack nt (fun (op, (num,_)) -> if (op = '-') then (-1)*(num) else num) in
+    let nt = pack nt (fun (num) -> Int(num)) in
+    nt;;
+
+let nt_float_radix = 
+    let nt_form = caten (plus nt_radix_range) (caten (char '.') (plus nt_radix_range)) in
+    let nt = pack nt_form (fun (a, (_, b)) -> (a,b)) in
+    let nt = caten nt_radix_helper nt in
+    let nt = pack nt (fun ((op,base), (left, right)) -> 
+    let converted_left = nt_radix_cal base left  in
+    let converted_right = nt_radix_cal_float base right in
+    (op,(converted_left, converted_right))) in
+    let nt = pack nt (fun (op,((e1,_),(e2,_))) -> 
+        let converted = float_of_string ((string_of_int e1) ^ "." ^ (string_of_int e2)) in
+        (op, converted)) in
+    let nt = pack nt (fun (op, num) -> if (op = '-') then (-1.)*.(num) else num) in
+    nt;;
+
 let nt_number = 
     let nt = disj_list [nt_scientific_notation;nt_float_packed; nt_int_packed] in
     let nt = pack nt (function e -> Number(e)) in
