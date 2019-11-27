@@ -16,4 +16,5 @@ open NT;;
 
 (* test_string nt_sexpr "235";;  *)
 
-test_string nt_float_radix "~2r110.1";;     
+test_string nt_sexpr "#2r+1101";;     
+
