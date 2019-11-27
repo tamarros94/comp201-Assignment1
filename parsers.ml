@@ -385,36 +385,5 @@ let rec nt_sexpr str =
         let nt1 nt = make_paired (star whitespace_or_comment) (star whitespace_or_comment) nt in
         nt1 s
 
-
-
-
-
-
-
-
-    (* and nt_tag_expr s =
-        let prefix = word "#{" in
-        let postfix = word "}" in
-        let eq_sign = word "=" in
-        let symbol_name = pack nt_symbol (
-            function e -> match e with
-            | Symbol(name) -> name) in
-        let nt_ref = caten prefix (caten (symbol_name) postfix) in
-        let nt_tag_prefix = caten nt_ref eq_sign in
-        let nt_tag = caten nt_tag_prefix nt_sexpr in
-        let nt = pack nt_tag 
-        (function  (((_, (name, _)),_), (sexp,_)) -> 
-            let rec throw_err_if_tagged_twice sexp_rec = 
-                let is_same_tag = sexpr_eq sexp_rec Tag(name, sexp) in
-                if is_same_tag then raise X_this_should_not_happen else match sexp_rec with 
-                    | (a,b) -> if (sexpr_eq a Tag(name, sexp)) then raise X_this_should_not_happen else
-                        throw_err_if_tagged_twice b
-                    | e -> None
-                   
-            in        
-            throw_err_if_tagged_twice sexp) in
-        nt;;       *)
-
-
     
         end;; (* end of struct PC *)

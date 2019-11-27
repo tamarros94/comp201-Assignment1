@@ -1,9 +1,6 @@
-#use "parsers.ml";;
-
+#use "reader.ml";;
+open Reader;;
 (* testing *)
-
-open NT;;
-
 (* test_string (make_spaced (word("moshe"))) "   moshe   ";; *)
 (* test_string nt_hex "    0x35";; *)
 (* test_string nt_boolean "         #t";; *)
@@ -16,5 +13,5 @@ open NT;;
 
 (* test_string nt_sexpr "235";;  *)
 
-test_string nt_sexpr "#{foo}=(2 3)";;     
+read_sexprs "";;     
 
