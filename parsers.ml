@@ -279,7 +279,16 @@ let nt_nil =
     let postfix = char ')' in
     let rec nt_proper_list_rec () =  *)
 
-
+let nt_teg_ref_identifier= 
+    let prefix = word "#{" in
+    let postfix = word "}" in
+    let symbol_name = pack nt_symbol (
+        function e -> match e with
+        | Symbol(name) -> name
+        | other_sexpr -> raise X_no_match ) in
+    let nt = caten prefix (caten (symbol_name) postfix) in
+    let nt = pack nt (fun (_, (name, _)) -> name) in
+    nt;;
 
 (* sexp *)
 
@@ -295,9 +304,9 @@ let rec nt_sexpr str =
             nt_quote;
             nt_quasi_quote;
             nt_unquote;
-            nt_unquote_and_splice
-            (* nt_tag_expr; *)
-            (* nt_comment_sexpr *)
+            nt_unquote_and_splice;
+            nt_tagged_sexpr;
+            nt_tag_ref
            ] in
     (make_spaced_or_commented sexpr_disj) str
     and nt_list s = 
@@ -340,6 +349,30 @@ let rec nt_sexpr str =
         let nt = caten prefix nt_sexpr in
         pack nt (function (_, e) -> Pair(Symbol("unquote-splicing"), Pair(e, Nil)))
         s
+    and nt_tag_ref s =
+        let nt = pack nt_teg_ref_identifier (fun name -> TagRef(name)) in
+        nt s
+    and nt_tagged_sexpr s =
+        let eq_sign = word "=" in
+        let nt = caten nt_teg_ref_identifier eq_sign in
+        let nt = caten nt nt_sexpr in
+        let nt = pack nt (fun ((name,_),sexpr) -> TaggedSexpr(name, sexpr)) in
+        let nt = pack nt (fun e -> 
+            let rec check_if_valid original_name rec_sexpr = match rec_sexpr with
+                |TaggedSexpr(some_name, some_sexpr) -> 
+                    if some_name = original_name 
+                        then false
+                        else (check_if_valid original_name some_sexpr)
+                |Pair(sexpr1, sexpr2) -> 
+                    (check_if_valid original_name sexpr1) &&
+                    (check_if_valid original_name sexpr2) 
+                |other -> true in
+
+            match e with
+            | TaggedSexpr(name, sexpr) -> let valid = check_if_valid name sexpr in
+            if valid then TaggedSexpr(name, sexpr) else raise X_this_should_not_happen
+            | other -> raise X_no_match ) in
+            nt s
     and nt_comment_sexpr s =
         let prefix = word "#;" in
         let body = nt_sexpr in
@@ -352,13 +385,8 @@ let rec nt_sexpr str =
         let nt1 nt = make_paired (star whitespace_or_comment) (star whitespace_or_comment) nt in
         nt1 s
 
-    and nt_ref s =
-        let prefix = word "#{" in
-        let postfix = word "}" in
-        let symbol_name = pack nt_symbol (
-            function e -> match e with
-            | Symbol(name) -> name) in
-        let nt_ref = caten prefix (caten (symbol_name) postfix) 
+
+
 
 
 

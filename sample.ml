@@ -16,5 +16,5 @@ open NT;;
 
 (* test_string nt_sexpr "235";;  *)
 
-test_string nt_sexpr "#2r+1101";;     
+test_string nt_sexpr "#{foo}=(2 3)";;     
 
