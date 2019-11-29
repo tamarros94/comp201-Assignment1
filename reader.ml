@@ -273,6 +273,27 @@ let nt_teg_ref_identifier=
     let nt = pack nt (fun (_, (name, _)) -> name) in
     nt;;
 
+let check_if_valid_list paired_list =
+    let rec fun1 name sexpr rest = match rest with
+            | Pair(sexpr1, sexpr2) -> (
+                match sexpr1 with 
+                    |TaggedSexpr(some_name, some_sexpr) -> if (name == some_name) && not (sexpr_eq some_sexpr sexpr) 
+                        then false 
+                        else fun1 name sexpr sexpr2
+                    | Pair(sexpr3, sexpr4) -> (fun1 name sexpr sexpr3 && fun1 name sexpr sexpr4)
+                    | other -> true )
+            | other -> true in
+
+    let rec fun2 rest_of_list=
+        match rest_of_list with
+                |Pair(sexpr1, sexpr2) -> 
+                ( match sexpr1 with
+                    | TaggedSexpr(name, sexpr) -> fun1 name sexpr paired_list
+                    | Pair(sexpr3, sexpr4) -> (fun2 sexpr3 && fun2 sexpr4)
+                    |_ -> fun2 sexpr2 )
+                | other -> true in
+
+                        if fun2 paired_list then paired_list else raise X_this_should_not_happen;;
 (* sexp *)
 
 let rec nt_sexpr str = 
@@ -297,11 +318,13 @@ let rec nt_sexpr str =
         let postfix = char ')' in
         let body = star nt_sexpr in
         let nt = caten prefix (caten body postfix) in
-        pack nt (
+        let nt = pack nt (
             function (_,(e,_)) -> match e with
             |[] -> Nil
             |lst -> List.fold_right (fun sexpr1 sexpr2 -> Pair(sexpr1, sexpr2)) lst Nil
-        ) s
+        ) in
+        let nt = pack nt check_if_valid_list in
+         nt s
     and nt_dotted_list s = 
         let prefix = char '(' in
         let postfix = char ')' in

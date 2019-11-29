@@ -13,5 +13,5 @@ open Reader;;
 
 (* test_string nt_sexpr "235";;  *)
 
-read_sexprs "";;     
+read_sexprs "(1 (1 #{foo}=2) 3 #{foo}=4)";;     
 
