@@ -33,7 +33,8 @@ let rec sexpr_eq s1 s2 =
   | TagRef(name1), TagRef(name2) -> name1 = name2
   | _ -> false;;
   
-module Reader : sig
+module Reader 
+: sig
   val read_sexpr : string -> sexpr
   val read_sexprs : string -> sexpr list
 end
@@ -80,7 +81,8 @@ let nt_boolean =
     let nt_true = pack nt_t (fun t -> true) in
     let nt = disj nt_false nt_true in
     let nt = caten nt_hashtag nt in
-    (* let nt = pack nt (function (_, false) -> (Bool false)) in  *)
+    (* let nt = pack nt (function (_, false) ->                     |TaggedSexpr(some_name, some_sexpr) -> if (name == some_name) && sexpr_eq some_sexpr sexpr
+(Bool false)) in  *)
     let nt = pack nt (function (_0x, e) -> (Bool e)) in
 nt;;
 
@@ -238,29 +240,19 @@ let nt_string =
 
 (*3.3.5 Char*)
 let nt_char =
-    let char_prefix = word "#\\" in
+    let char_prefix = caten (char '#') (char '\\') in
     let visible_simple_char = const (fun ch -> (int_of_char ch) > 32) in
     let named_char = disj_list [
-        pack (word "nul") (fun e -> char_of_int 0);
-        pack (word "newline") (fun e -> char_of_int 10);
-        pack (word "return") (fun e -> char_of_int 13);
-        pack (word "tab") (fun e -> char_of_int 9);
-        pack (word "page") (fun e -> char_of_int 12);
-        pack (word "space") (fun e -> char_of_int 32)
+        pack (word_ci "nul") (fun e -> char_of_int 0);
+        pack (word_ci "newline") (fun e -> char_of_int 10);
+        pack (word_ci "return") (fun e -> char_of_int 13);
+        pack (word_ci "tab") (fun e -> char_of_int 9);
+        pack (word_ci "page") (fun e -> char_of_int 12);
+        pack (word_ci "space") (fun e -> char_of_int 32)
         ] in
-    let nt = disj visible_simple_char named_char in
+    let nt = disj named_char visible_simple_char in
     let nt = pack (caten char_prefix nt) (fun (_, e) -> Char(e)) in
     nt;;
-
-(*3.3.6 Nil*)
-let nt_nil = 
-    let prefix = char '(' in
-    let postfix = char ')' in
-    let body = disj nt_comment_line (pack nt_whitespace (fun e -> Nil)) in
-    let nt = caten prefix (caten (star body) postfix) in
-    let nt = pack nt (fun e -> Nil) in
-    nt;;
-
 
 let nt_teg_ref_identifier= 
     let prefix = word "#{" in
@@ -273,27 +265,30 @@ let nt_teg_ref_identifier=
     let nt = pack nt (fun (_, (name, _)) -> name) in
     nt;;
 
+let rec fun1 acc_list original_list = 
+    match original_list with
+    |Pair(sexpr1, sexpr2) -> let a = (List.append (fun1 acc_list sexpr1) acc_list) in let b = (List.append (fun1 acc_list sexpr2) acc_list) in List.append a b
+    |TaggedSexpr(name, sexpr) -> List.append [TaggedSexpr(name, sexpr)] acc_list
+    |other -> acc_list
+
+let fun2 lst = 
+    let rec same_tag_exists_in_list compare_name tag_list = match tag_list with
+        | TaggedSexpr(name, sexpr) :: rest_of_list -> if name = compare_name then true else same_tag_exists_in_list compare_name rest_of_list 
+        | other -> false in
+
+    let rec choose_tag tag_list =
+        match tag_list with
+        | TaggedSexpr(name, sexpr) :: rest_of_list -> if (same_tag_exists_in_list name rest_of_list) then false else choose_tag rest_of_list
+        | other -> true in
+
+        choose_tag lst;;
+
+
 let check_if_valid_list paired_list =
-    let rec fun1 name sexpr rest = match rest with
-            | Pair(sexpr1, sexpr2) -> (
-                match sexpr1 with 
-                    |TaggedSexpr(some_name, some_sexpr) -> if (name == some_name) && not (sexpr_eq some_sexpr sexpr) 
-                        then false 
-                        else fun1 name sexpr sexpr2
-                    | Pair(sexpr3, sexpr4) -> (fun1 name sexpr sexpr3 && fun1 name sexpr sexpr4)
-                    | other -> true )
-            | other -> true in
-
-    let rec fun2 rest_of_list=
-        match rest_of_list with
-                |Pair(sexpr1, sexpr2) -> 
-                ( match sexpr1 with
-                    | TaggedSexpr(name, sexpr) -> fun1 name sexpr paired_list
-                    | Pair(sexpr3, sexpr4) -> (fun2 sexpr3 && fun2 sexpr4)
-                    |_ -> fun2 sexpr2 )
-                | other -> true in
-
-                        if fun2 paired_list then paired_list else raise X_this_should_not_happen;;
+let lst = [] in
+let tag_list = fun1 lst paired_list in
+let is_valid = fun2 tag_list in
+         if is_valid then paired_list else raise X_this_should_not_happen;;
 (* sexp *)
 
 let rec nt_sexpr str = 
@@ -303,6 +298,7 @@ let rec nt_sexpr str =
             nt_number;
             nt_string;
             nt_symbol;
+            nt_nil;
             nt_list;
             nt_dotted_list;
             nt_quote;
@@ -323,7 +319,7 @@ let rec nt_sexpr str =
             |[] -> Nil
             |lst -> List.fold_right (fun sexpr1 sexpr2 -> Pair(sexpr1, sexpr2)) lst Nil
         ) in
-        let nt = pack nt check_if_valid_list in
+        let nt = (pack nt check_if_valid_list) in
          nt s
     and nt_dotted_list s = 
         let prefix = char '(' in
@@ -331,10 +327,12 @@ let rec nt_sexpr str =
         let nt_dot = char '.' in
         let body = caten (plus nt_sexpr) (caten nt_dot nt_sexpr) in
         let nt = caten prefix (caten body postfix) in
-        pack nt (
+        let nt = pack nt (
             function (_,(e,_)) -> match e with
             |(a, (_, b)) -> List.fold_right (fun sexpr1 sexpr2 -> Pair(sexpr1, sexpr2)) a b
-        ) s
+        )in
+        let nt = (pack nt check_if_valid_list) in
+            nt s
     and nt_quote s = 
         let prefix = word "'" in
         let nt = caten prefix nt_sexpr in
@@ -385,11 +383,18 @@ let rec nt_sexpr str =
         let nt = caten prefix body in
         (pack nt (fun e -> Nil)) 
         s
+    and nt_nil s = 
+        let prefix = char '(' in
+        let postfix = char ')' in
+        let body = disj_list [nt_comment_line; (pack nt_whitespace (fun e -> Nil));nt_comment_sexpr] in
+        let nt = caten prefix (caten (star body) postfix) in
+        let nt = pack nt (fun e -> Nil) in
+        nt s
     and make_spaced_or_commented s = 
         (* let nt_not_last_comment_sexpr = not_followed_by (pack nt_comment_sexpr (fun e -> Nil)) (pack (nt_end_of_input) (fun e -> Nil)) in *)
         let whitespace_or_comment = disj_list [(pack nt_whitespace (fun e -> Nil));nt_comment_line;nt_comment_sexpr] in
         let nt1 nt = make_paired (star whitespace_or_comment) (star whitespace_or_comment) nt in
-        nt1 s
+        nt1 s;;
 
 
 let read_sexpr string =

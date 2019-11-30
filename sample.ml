@@ -1,17 +1,12 @@
 #use "reader.ml";;
 open Reader;;
-(* testing *)
-(* test_string (make_spaced (word("moshe"))) "   moshe   ";; *)
-(* test_string nt_hex "    0x35";; *)
-(* test_string nt_boolean "         #t";; *)
-(* test_string nt_int "-0";; *)
-(* test_string (char ' ') "      p";; *)
-(* test_string nt_number "     -0998.0      ";; *)
-(* test_string nt_symbol "      aBc 9090";; *)
-(* test_string nt_symbol "a";; *)
-(* test_string nt_string "   \"  blabla \\t \\\" \" ";; *)
 
-(* test_string nt_sexpr "235";;  *)
+#use "topfind";;
+#use "pc.ml";;
+open PC;;
 
-read_sexprs "(1 (1 #{foo}=2) 3 #{foo}=4)";;     
 
+(* let test_tag_raises_6 test_ctxt = assert_raises X_this_should_not_happen (fun _ -> (Reader.read_sexpr "(1 #{foo}=2 3 #{foo}=4)"));;
+let test_tag_raises_7 test_ctxt = assert_raises X_this_should_not_happen (fun _ -> (Reader.read_sexpr "(1 (#{x}=5 6) 7 8 (#{x}=3 5) 9)"));; *)
+
+Reader.read_sexpr "(1 (#{x}=5 6) 7 8 (#{x}=3 5) 9)"
